@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+    {% block content %}
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.name }}
+            {{ form.image }}
+            <button type="submit">Upload</button>
+        </form>
+        <div class="row my-4">
+            <div class="col-md-8">
+                {% for im in uploaded_images %}
+                    <div class="card mb-4 index">
+                        <h2 class="card-title">{{ im.name }}</h2>
+                        <img class="card-img-top index-img" src="{{ im.image.url }}" width="10%" height="10%"/>
+                        {% if im.edit_image %}
+                            <img class="card-img-top index-img" src="{{ im.edit_image.url }}" width="10%" height="10%"/>
+                        {% endif %}
+                        <form action="{% url 'edit' im.id %}" method="post">
+                            {% csrf_token %}
+                            <input type="submit" name="button_gray" value="gray">
+                        </form>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endblock %}
