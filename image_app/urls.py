@@ -4,4 +4,7 @@ from django.urls import include, path
 
 from . import views
 
-urlpatterns = [path("upload", views.upload_image, name="upload"), path("edit/<int:id>", views.edit_image, name="edit")]
+urlpatterns = [
+    path("upload", views.upload_image, name="upload"), path(
+        "edit/<int:id>", views.edit_image, name="edit")
+]

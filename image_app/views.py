@@ -1,3 +1,6 @@
+import hashlib
+import os.path
+
 import cv2
 from django.conf import settings
 from django.shortcuts import redirect, render
@@ -27,7 +30,8 @@ def edit_image(request, id):
     uploaded_image = UploadedImage.objects.get(id=id)
     if "button_gray" in request.POST:
         change_gray(uploaded_image)
-        uploaded_image.edit_image = f"{uploaded_image.name}_{uploaded_image.id}_gray.jpg"
+        uploaded_image.edit_image = get_image_path(uploaded_image)
+        print(get_image_path(uploaded_image))
         uploaded_image.save()
         return redirect("upload")
     return render(request, "image_app/index.html", params)
@@ -39,5 +43,15 @@ def change_gray(uploaded_image):
 
     img = cv2.imread(path)
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    output = str(settings.BASE_DIR) + f"/media/{uploaded_image.name}_{uploaded_image.id}_gray.jpg"
+    output = str(settings.BASE_DIR) + '/media' + \
+        get_image_path(uploaded_image)
+    print(output)
     cv2.imwrite(output, img_gray)
+
+
+def get_image_path(before_im):
+    return "/images/%s%s" % (
+        hashlib.sha1(
+            (before_im.name + before_im.image.url).encode("utf-8")).hexdigest(),
+        os.path.splitext(before_im.image.url)[1],
+    )
