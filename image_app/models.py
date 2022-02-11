@@ -15,6 +15,8 @@ class UploadedImage(models.Model):
     name = models.CharField(max_length=255, blank=True)
     image = models.ImageField(upload_to=get_image_path, null=True, blank=True)
     edit_image = models.ImageField(null=True, blank=True)
+    product_im = models.ImageField(
+        upload_to=get_image_path, null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

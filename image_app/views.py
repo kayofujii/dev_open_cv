@@ -4,6 +4,7 @@ import os.path
 import cv2
 from django.conf import settings
 from django.shortcuts import redirect, render
+from PIL import Image, ImageDraw, ImageFilter
 
 from .forms import ImageForm
 from .models import UploadedImage
@@ -12,13 +13,15 @@ from .models import UploadedImage
 def upload_image(request):
     params = {}
     params["form"] = ImageForm()
-    params["uploaded_images"] = UploadedImage.objects.all()
+    params["uploaded_images"] = UploadedImage.objects.all().order_by(
+        '-uploaded_at')
     if request.method == "POST":
         form = ImageForm(request.POST)
         if form.is_valid():
             uploaded_image = UploadedImage()
             uploaded_image.name = form.cleaned_data["name"]
             uploaded_image.image = request.FILES.get("image")
+            uploaded_image.product_im = request.FILES.get("product_im")
             uploaded_image.save()
             return redirect("upload")
 
@@ -58,28 +61,58 @@ def get_image_path(before_im):
     )
 
 
+def get_tmp_image_path(before_im):
+    return "/media/tmp/%s%s" % (
+        hashlib.sha1(
+            (before_im.name + before_im.image.url).encode("utf-8")).hexdigest(),
+        ".png",
+    )
+
+
 def recognize_face(uploaded_image):
     # https://note.nkmk.me/image-processing/
     # 参考:https://note.nkmk.me/python-opencv-face-detection-haar-cascade/
     face_cascade = cv2.CascadeClassifier(
         settings.OPENCV_PATH + '/data/haarcascades/haarcascade_frontalface_default.xml')
-    print(settings.OPENCV_PATH +
-          '/data/haarcascades/haarcascade_frontalface_default.xml')
 
     url = uploaded_image.image.url
     path = str(settings.BASE_DIR) + url
-    print(path)
     src = cv2.imread(path)
-    src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+    # src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
 
-    faces = face_cascade.detectMultiScale(src_gray)
+    faces = face_cascade.detectMultiScale(src)
 
     for x, y, w, h in faces:
-        cv2.rectangle(src, (x, y), (x + w, y + h), (255, 0, 0), 2)
-        face = src[y: y + h, x: x + w]
-        face_gray = src_gray[y: y + h, x: x + w]
+        # cv2.rectangle(src, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        # face = src[y: y + h, x: x + w]
+        # face = src[y-130:y+h+80, x-80:x+w+80]
+        face = src[y-15:y+h+30, x-15:x+w+30]
+        # face_gray = src_gray[y: y + h, x: x + w]
+    im_rgba = face.copy()
+    print(im_rgba)
+
+    # opencv→pillow変換 https://qiita.com/derodero24/items/f22c22b22451609908ee
+    im_rgba = cv2.cvtColor(im_rgba, cv2.COLOR_BGR2RGB)
+    im_rgba = Image.fromarray(im_rgba)
+    # 丸を作成
+    im_a = Image.new("L", im_rgba.size, 0)
+    print(im_rgba.size)
+    print(im_rgba.size[0])
+    im_a = im_a.filter(ImageFilter.GaussianBlur(4))
+    draw = ImageDraw.Draw(im_a)
+    draw.ellipse((0, 0, im_rgba.size[0]+10, im_rgba.size[0]+10), fill=255)
+    # draw.ellipse((0, 0, 300, 400), fill=255)
+
+    # 丸に顔をいれる
+    im_rgba.putalpha(im_a)
+    # im_rgba_crop = im_rgba.crop((0, 0, 300, 400))
+    im_rgba_crop = im_rgba.crop(
+        (0, 0, im_rgba.size[0]+20, im_rgba.size[0]+20))
+
+    im_rgba_crop.save(str(settings.BASE_DIR) +
+                      get_tmp_image_path(uploaded_image))
 
     output = str(settings.BASE_DIR) + '/media' + \
         get_image_path(uploaded_image)
 
-    cv2.imwrite(output, src)
+    cv2.imwrite(output, face)

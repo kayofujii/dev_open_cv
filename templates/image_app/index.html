@@ -2,8 +2,9 @@
     {% block content %}
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-            {{ form.name }}
-            {{ form.image }}
+            <div><label>{{ form.name.label }}</label>: {{ form.name }}</div>
+            <div><label>{{ form.image.label }}</label>: {{ form.image }}</div>
+            <div><label>{{ form.product_im.label }}</label>: {{ form.product_im }}</div>
             <button type="submit">Upload</button>
         </form>
         <div class="row my-4">
@@ -12,12 +13,15 @@
                     <div class="card mb-4 index">
                         <h2 class="card-title">{{ im.name }}</h2>
                         <img class="card-img-top index-img" src="{{ im.image.url }}" width="10%" height="10%"/>
+                        {% if im.product_im %}
+                            <img class="card-img-top index-img" src="{{ im.product_im.url }}" width="10%" height="10%"/>
+                        {% endif %}
                         {% if im.edit_image %}
                             <img class="card-img-top index-img" src="{{ im.edit_image.url }}" width="10%" height="10%"/>
                         {% endif %}
                         <form action="{% url 'edit' im.id %}" method="post">
                             {% csrf_token %}
-                            <input type="submit" name="button_gray" value="gray">
+                            <input type="submit" name="button_gray" value="change">
                         </form>
                     </div>
                 {% endfor %}
