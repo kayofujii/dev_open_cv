@@ -61,8 +61,10 @@ def get_image_path(before_im):
     )
 
 
-def get_tmp_image_path(before_im):
-    return "/media/tmp/%s%s" % (
+def get_tmp_image_path(before_im, dir):
+    os.makedirs(str(settings.BASE_DIR) +
+                f"/media/tmp/{dir}", exist_ok=True)
+    return f"/media/tmp/{dir}/%s%s" % (
         hashlib.sha1(
             (before_im.name + before_im.image.url).encode("utf-8")).hexdigest(),
         ".png",
@@ -96,11 +98,9 @@ def recognize_face(uploaded_image):
     im_rgba = Image.fromarray(im_rgba)
     # 丸を作成
     im_a = Image.new("L", im_rgba.size, 0)
-    print(im_rgba.size)
-    print(im_rgba.size[0])
-    im_a = im_a.filter(ImageFilter.GaussianBlur(4))
     draw = ImageDraw.Draw(im_a)
     draw.ellipse((0, 0, im_rgba.size[0]+10, im_rgba.size[0]+10), fill=255)
+    im_a = im_a.filter(ImageFilter.GaussianBlur(4))
     # draw.ellipse((0, 0, 300, 400), fill=255)
 
     # 丸に顔をいれる
@@ -108,9 +108,18 @@ def recognize_face(uploaded_image):
     # im_rgba_crop = im_rgba.crop((0, 0, 300, 400))
     im_rgba_crop = im_rgba.crop(
         (0, 0, im_rgba.size[0]+20, im_rgba.size[0]+20))
-
     im_rgba_crop.save(str(settings.BASE_DIR) +
-                      get_tmp_image_path(uploaded_image))
+                      get_tmp_image_path(uploaded_image, 'crop'))
+
+    pro_path = str(settings.BASE_DIR) + uploaded_image.product_im.url
+    pro_im = Image.open(pro_path)
+    copy_pro_im = pro_im.copy()
+    copy_pro_im.paste(im_rgba_crop, (100, 50))
+    copy_pro_im.save(str(settings.BASE_DIR) +
+                     get_tmp_image_path(uploaded_image, 'paste'))
+
+    # im_rgba_crop.save(str(settings.BASE_DIR) +
+    #                   get_tmp_image_path(uploaded_image))
 
     output = str(settings.BASE_DIR) + '/media' + \
         get_image_path(uploaded_image)
