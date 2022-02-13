@@ -80,7 +80,6 @@ def recognize_face(uploaded_image):
     url = uploaded_image.image.url
     path = str(settings.BASE_DIR) + url
     src = cv2.imread(path)
-    # src_gray = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
 
     faces = face_cascade.detectMultiScale(src)
 
@@ -89,9 +88,7 @@ def recognize_face(uploaded_image):
         # face = src[y: y + h, x: x + w]
         # face = src[y-130:y+h+80, x-80:x+w+80]
         face = src[y-15:y+h+30, x-15:x+w+30]
-        # face_gray = src_gray[y: y + h, x: x + w]
     im_rgba = face.copy()
-    print(im_rgba)
 
     # opencv→pillow変換 https://qiita.com/derodero24/items/f22c22b22451609908ee
     im_rgba = cv2.cvtColor(im_rgba, cv2.COLOR_BGR2RGB)
@@ -114,12 +111,22 @@ def recognize_face(uploaded_image):
     pro_path = str(settings.BASE_DIR) + uploaded_image.product_im.url
     pro_im = Image.open(pro_path)
     copy_pro_im = pro_im.copy()
-    copy_pro_im.paste(im_rgba_crop, (100, 50))
+
+    pro_src = cv2.imread(pro_path)
+    print(pro_src.shape)
+    pro_faces = face_cascade.detectMultiScale(pro_src)
+
+    for x, y, w, h in pro_faces:
+        pro_face = src[y-15:y+h+30, x-15:x+w+30]
+        pro_x = x
+        pro_y = y
+        pro_w = w
+        pro_h = h
+
+    im_rgba_crop = im_rgba_crop.resize((pro_w, pro_h))
+    copy_pro_im.paste(im_rgba_crop, (pro_x, pro_y))
     copy_pro_im.save(str(settings.BASE_DIR) +
                      get_tmp_image_path(uploaded_image, 'paste'))
-
-    # im_rgba_crop.save(str(settings.BASE_DIR) +
-    #                   get_tmp_image_path(uploaded_image))
 
     output = str(settings.BASE_DIR) + '/media' + \
         get_image_path(uploaded_image)
