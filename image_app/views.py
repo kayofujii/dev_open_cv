@@ -2,6 +2,7 @@ import hashlib
 import os.path
 
 import cv2
+import numpy as np
 from django.conf import settings
 from django.shortcuts import redirect, render
 from PIL import Image, ImageDraw, ImageFilter
@@ -35,7 +36,6 @@ def edit_image(request, id):
         recognize_face(uploaded_image)
         # change_gray(uploaded_image)
         uploaded_image.edit_image = get_image_path(uploaded_image)
-        print(get_image_path(uploaded_image))
         uploaded_image.save()
         return redirect("upload")
     return render(request, "image_app/index.html", params)
@@ -49,7 +49,6 @@ def change_gray(uploaded_image):
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     output = str(settings.BASE_DIR) + '/media' + \
         get_image_path(uploaded_image)
-    print(output)
     cv2.imwrite(output, img_gray)
 
 
@@ -84,10 +83,7 @@ def recognize_face(uploaded_image):
     faces = face_cascade.detectMultiScale(src)
 
     for x, y, w, h in faces:
-        # cv2.rectangle(src, (x, y), (x + w, y + h), (255, 0, 0), 2)
-        # face = src[y: y + h, x: x + w]
-        # face = src[y-130:y+h+80, x-80:x+w+80]
-        face = src[y-15:y+h+30, x-15:x+w+30]
+        face = src[y-50:y+h+50, x-50:x+w+50]
     im_rgba = face.copy()
 
     # opencv→pillow変換 https://qiita.com/derodero24/items/f22c22b22451609908ee
@@ -96,13 +92,11 @@ def recognize_face(uploaded_image):
     # 丸を作成
     im_a = Image.new("L", im_rgba.size, 0)
     draw = ImageDraw.Draw(im_a)
-    draw.ellipse((0, 0, im_rgba.size[0]+10, im_rgba.size[0]+10), fill=255)
+    draw.ellipse((0, 0, im_rgba.size[0], im_rgba.size[0]), fill=255)
     im_a = im_a.filter(ImageFilter.GaussianBlur(4))
-    # draw.ellipse((0, 0, 300, 400), fill=255)
 
     # 丸に顔をいれる
     im_rgba.putalpha(im_a)
-    # im_rgba_crop = im_rgba.crop((0, 0, 300, 400))
     im_rgba_crop = im_rgba.crop(
         (0, 0, im_rgba.size[0]+20, im_rgba.size[0]+20))
     im_rgba_crop.save(str(settings.BASE_DIR) +
@@ -113,7 +107,6 @@ def recognize_face(uploaded_image):
     copy_pro_im = pro_im.copy()
 
     pro_src = cv2.imread(pro_path)
-    print(pro_src.shape)
     pro_faces = face_cascade.detectMultiScale(pro_src)
 
     for x, y, w, h in pro_faces:
@@ -122,13 +115,20 @@ def recognize_face(uploaded_image):
         pro_y = y
         pro_w = w
         pro_h = h
+    size_sabun = int(pro_w*0.5)
+    ichi_sabun = int(pro_x*0.1)
 
-    im_rgba_crop = im_rgba_crop.resize((pro_w, pro_h))
-    copy_pro_im.paste(im_rgba_crop, (pro_x, pro_y))
+    im_rgba_crop = im_rgba_crop.resize((pro_w+size_sabun, pro_h+size_sabun))
+    copy_pro_im.paste(im_rgba_crop, (pro_x-ichi_sabun, pro_y-ichi_sabun),
+                      im_rgba_crop.split()[3])
     copy_pro_im.save(str(settings.BASE_DIR) +
                      get_tmp_image_path(uploaded_image, 'paste'))
 
     output = str(settings.BASE_DIR) + '/media' + \
         get_image_path(uploaded_image)
 
-    cv2.imwrite(output, face)
+    output_im = copy_pro_im.copy()
+    output_im = np.array(output_im, dtype=np.uint8)
+    output_im = cv2.cvtColor(output_im, cv2.COLOR_RGB2BGR)
+
+    cv2.imwrite(output, output_im)
