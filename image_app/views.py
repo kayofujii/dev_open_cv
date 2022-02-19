@@ -10,6 +10,14 @@ from PIL import Image, ImageDraw, ImageFilter
 from .forms import ImageForm
 from .models import UploadedImage
 
+# == Parameters =======================================================================
+BLUR = 21
+CANNY_THRESH_1 = 10
+CANNY_THRESH_2 = 200
+MASK_DILATE_ITER = 10
+MASK_ERODE_ITER = 10
+MASK_COLOR = (0.0, 0.0, 1.0)  # In BGR format
+
 
 def upload_image(request):
     params = {}
@@ -80,6 +88,50 @@ def recognize_face(uploaded_image):
     path = str(settings.BASE_DIR) + url
     src = cv2.imread(path)
 
+    # 背景を透過する
+    # https://qiita.com/AtomJamesScott/items/ccef87b1092d7407de0d
+    img = cv2.imread(path)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    edges = cv2.Canny(gray, CANNY_THRESH_1, CANNY_THRESH_2)
+    edges = cv2.dilate(edges, None)
+    edges = cv2.erode(edges, None)
+    contour_info = []
+    contours, _ = cv2.findContours(
+        edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    for c in contours:
+        contour_info.append((
+            c,
+            cv2.isContourConvex(c),
+            cv2.contourArea(c),
+        ))
+    contour_info = sorted(contour_info, key=lambda c: c[2], reverse=True)
+    max_contour = contour_info[0]
+    mask = np.zeros(edges.shape)
+    cv2.fillConvexPoly(mask, max_contour[0], (255))
+
+    mask = cv2.dilate(mask, None, iterations=MASK_DILATE_ITER)
+    mask = cv2.erode(mask, None, iterations=MASK_ERODE_ITER)
+    mask = cv2.GaussianBlur(mask, (BLUR, BLUR), 0)
+
+    mask_stack = np.dstack([mask]*3)    # Create 3-channel alpha mask
+
+    mask_stack = mask_stack.astype(
+        'float32') / 255.0          # Use float matrices,
+    img = img.astype('float32') / 255.0  # for easy blending
+
+    masked = (mask_stack * img) + ((1-mask_stack) * MASK_COLOR)  # Blend
+    # Convert back to 8-bit
+    masked = (masked * 255).astype('uint8')
+
+    c_red, c_green, c_blue = cv2.split(img)
+
+    # merge with mask got on one of a previous steps
+    img_a = cv2.merge((c_red, c_green, c_blue, mask.astype('float32') / 255.0))
+
+    cv2.imwrite(str(settings.BASE_DIR) +
+                get_tmp_image_path(uploaded_image, 'crop2'), img_a*255)
+
     faces = face_cascade.detectMultiScale(src)
 
     for x, y, w, h in faces:
@@ -99,8 +151,9 @@ def recognize_face(uploaded_image):
     im_rgba.putalpha(im_a)
     im_rgba_crop = im_rgba.crop(
         (0, 0, im_rgba.size[0]+20, im_rgba.size[0]+20))
-    im_rgba_crop.save(str(settings.BASE_DIR) +
-                      get_tmp_image_path(uploaded_image, 'crop'))
+    crop_path = str(settings.BASE_DIR) +\
+        get_tmp_image_path(uploaded_image, 'crop')
+    im_rgba_crop.save(crop_path)
 
     pro_path = str(settings.BASE_DIR) + uploaded_image.product_im.url
     pro_im = Image.open(pro_path)
