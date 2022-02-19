@@ -134,8 +134,8 @@ def recognize_face(uploaded_image):
 
     faces = face_cascade.detectMultiScale(src)
 
-    for x, y, w, h in faces:
-        face = src[y-50:y+h+50, x-50:x+w+50]
+    for x, y, w, h in [faces[0]]:
+        face = src[y-15:y+h+30, x-15:x+w+30]
     im_rgba = face.copy()
 
     # opencv→pillow変換 https://qiita.com/derodero24/items/f22c22b22451609908ee
@@ -162,7 +162,7 @@ def recognize_face(uploaded_image):
     pro_src = cv2.imread(pro_path)
     pro_faces = face_cascade.detectMultiScale(pro_src)
 
-    for x, y, w, h in pro_faces:
+    for x, y, w, h in [pro_faces[0]]:
         pro_face = src[y-15:y+h+30, x-15:x+w+30]
         pro_x = x
         pro_y = y
